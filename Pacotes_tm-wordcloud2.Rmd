@@ -1,0 +1,320 @@
+---
+title: "Pacotes tm e wordcloud2"
+author: "Bernardo Scaldaferri; Denise Alves Santos; Ingrid Raquel; Klara Narumi Hamada"
+date: "02/10/2020"
+output: html_document
+---
+```{r definindo o diretório de trabalho, echo=FALSE}
+getwd() # para saber o diretório atua
+setwd("C:/Users/Ingrid/Desktop")
+ # para definir o diretório de interesse 
+#Tire a # da linha acima para ativar o comando
+
+rm(list = ls(all=T)) # para limpar tudo no ambiente
+options(scipen=999)
+```
+# Mineração de textos
+Dados não-estruturados
+Entendendo o TM
+\
+Quais são as fontes objetos de análise:
+\
+getSources()
+\
+As mais utilizadas são:
+* VectorSource a vector of characters (treats each component as a document)
+* DataframeSource a data frame containing text (like CSV files)
+* DirSource for use with file directories
+
+Recursos de leitura do pacote:
+\
+getReaders()
+
+## Motivação
+
+## Conceitos básicos
+
+### Sumarização
+
+### Categorização
+
+### Clustering
+
+### Análise de Sentimentos
+
+## Pacotes a serem utilizados
+```{r instala_pacotes, message=FALSE, warning=FALSE}
+listofPackages <- c("tidyverse","wordcloud2", "tm", "tidytext", "pdftools", "rvest", "readr", "gutenbergr") 
+```
+```{r função instalar/chamar pacotes, message=FALSE, warning=FALSE, include=FALSE}
+packages <- function(listofPackages){
+  new.packages <- listofPackages[!(listofPackages %in% installed.packages()[, "Package"])]
+  if (length(new.packages))
+    install.packages(new.packages, dependencies = TRUE)
+  sapply(listofPackages, require, character.only = TRUE)
+}
+
+lapply(listofPackages, library, character.only = TRUE)
+```
+
+```{r testando pacotes instalados}
+packages(listofPackages)
+```
+
+
+## Etapas para a Mineração de textos
+
+### Coleta dos dados
+Formação da base de documentos ou Corpus
+\
+Análise discurso Ulysses Guimarães: 
+https://www.bbc.com/portuguese/brasil-45750071
+\
+[Íntegra do discurso de 05 de outubro de 1988](https://www.camara.leg.br/radio/programas/277285-integra-do-discurso-presidente-da-assembleia-nacional-constituinte-dr-ulysses-guimaraes-10-23/)
+\
+Baixar o arquivo pdf com a transcrição do discurso e deixá-lo, de preferência, no mesmo diretório de análise do R
+```{r importar o arquivo pdf}
+pdf_info("Ulysses_Constituinte.pdf")
+ulysses <- pdf_text("Ulysses_Constituinte.pdf")
+```
+O conteúdo do texto está nas linhas 2 e 3
+```{r separar a parte com o conteúdo do discurso}
+ulysses <- ulysses[c(1,2)]
+ulysses <- paste(ulysses, collapse = " ")
+```
+É interessante exportar para o diretório o arquivo em formato txt para verificar se tudo está em ordem
+```{r grava o arquivo em formato txt}
+write_lines(ulysses, "ulysses.txt")
+```
+
+```{r selecionando o discurso, warning=FALSE, message=FALSE}
+texto <- read_csv("ulysses.txt", col_names = FALSE) # conteúdo na linha 11
+novo_texto <- texto[11,1] 
+```
+Lendo o arquivo txt e o convertendo em vetor:
+```{r convertendo em vetor}
+novo_texto <- as.matrix(novo_texto)
+novo_texto <- as.vector(novo_texto)
+```
+Existe uma referência no final da primeira página. Retirar:
+```{r}
+novo_texto <- str_replace(novo_texto, "https://www.camara.leg.br/radio/programas/277285-integra-do-discurs…nte-da-assembleia-nacional-constituinte-dr-ulysses-guimaraes-10-23/        Página 1 de 3
+ Portal da Câmara dos Deputados                                                                                                               02/10/2020 23'15", "")
+write_lines(novo_texto, "ulysses.txt")
+novo_texto # retirado
+```
+
+Partindo o discurso em unidades textuais
+```{r}
+novo_origem <- read_lines("C:/Users/Ingrid/Desktop/ulysses.txt") #faz a leitura dos parágrafos
+str(novo_origem) # apresenta a estrutura criada
+
+dez <- rep(1:ceiling(length(novo_origem)/10), each = 10) # cria contagem 10 em 10
+str(dez)
+dez <- dez[1:length(novo_origem)] # para ficar com o mesmo número de parágrafos existente no texto inicial
+str(dez)
+novo_texto <- cbind(dez, novo_origem) %>% data.frame()
+
+novo_texto <- aggregate(formula = novo_origem ~ dez,
+                        data = novo_texto,
+                        FUN = paste,
+                        collapse = " ")
+
+novo_texto <- novo_texto %>% select(novo_origem) %>% as.matrix # transformar em matriz
+dim(novo_texto)
+```
+
+
+### Pré-processamento
+Preparação dos documentos. Processamento de Linguagem Natural (sigla em inglês: NLP)
+\
+*Palavras de conexão - stopwords*
+\
+O pacote tm já disponibiliza as stopwords em língua portuguesa. São 203. Caso sejá necessário é possível também acrescentar
+\
+*links para listas alternativas de  stopwords em português:*
+\
+https://www.ranks.nl/stopwords/brazilian
+\
+http://miningtext.blogspot.com/2008/11/listas-de-stopwords-stoplist-portugues.html
+\
+https://gist.github.com/alopes/5358189
+```{r stopwords}
+#Carregando o stopwords do pacote tm
+sw_pt_tm <- stopwords('portuguese')
+# convertendo para dataframe
+sw_pt_tm <- data.frame(sw_pt_tm)
+#Renomeando a variável
+sw_pt_tm <- rename(sw_pt_tm, palavra = sw_pt_tm)
+
+stopwords_personal <- tibble(palavra = c("é", "ainda", "alguns", "pra"))
+
+#stop_words_pt <- c(stopwords("pt"), "é", "ainda", "alguns", "pra")
+```
+
+* Uso das funções do pacote tm para limpeza do texto:
+```{r}
+novo_texto <- gsub("[[:cntrl:]]", " ", novo_texto) # elimina caracteres especiais, saltos de linha,..
+novo_texto <- tolower(novo_texto) # tudo em minusculas
+novo_texto <- removePunctuation(novo_texto) # remove pontuação
+
+novo_texto <- removeWords(novo_texto, stopwords("pt"))
+# novo_texto <- removeWords(novo_texto, stop_words_pt)
+novo_texto <- stripWhitespace(novo_texto) # remove espaços em branco
+novo_texto # texto limpo
+```
+```{r}
+novo_texto <- tibble(texto = novo_texto) #renomear a variável
+novo_texto
+```
+
+Tokenizar as palavras e eliminar as palavras de conexão
+```{r eliminando stopwords}
+texto_palavras <- novo_texto %>% 
+  unnest_tokens(palavra, texto, strip_numeric = TRUE) %>% 
+  count(palavra, sort = TRUE)
+
+palavras_freq <- texto_palavras %>% 
+  anti_join(stopwords_personal) %>%
+  anti_join(sw_pt_tm)
+```
+
+### Indexação
+Recuperação da informação (IR)
+Observando as 10 palavras mais frequentes
+```{r}
+grafico_palavras <- palavras_freq %>% 
+  top_n(10) %>% 
+  ggplot(aes(y = reorder(palavra, n), x = n)) + 
+  geom_col(fill = "#EEBBAA") +
+  labs(y = NULL, 
+       x = "frecuencia",
+       title = "As 10 palavras mais frequentes") +
+  theme_minimal()
+
+grafico_palavras
+```
+
+* Nuvem de palavras
+```{r}
+wordcloud2(data = palavras_freq, size = 0.5)
+```
+outra opção:
+```{r}
+wordcloud2(data = palavras_freq, size = 0.3, shape = "star", ellipticity = 0.8, gridSize =  0)
+
+```
+
+### Mineração
+Cálculo de inferência e extração do conhecimento
+```{r}
+novo_texto <- as.matrix(novo_texto)
+novo_texto <- as.vector(novo_texto)
+novo_texto # sem pontuação nem palavras de conexão
+```
+
+```{r}
+corpus_source <- VectorSource(novo_texto)
+novo_corpus <- Corpus(corpus_source)
+```
+Mapeando o Corpus indicando que é uma matriz de termos para fazer associação entre palavras
+```{r}
+novo_tdm <- TermDocumentMatrix(novo_corpus)
+novo_tdm 
+#terms == número de palavras distintas no corpus. documents: quantos textos tomados
+```
+
+```{r}
+findAssocs(novo_tdm, "constituição", 0.7) 
+# associaçã mínima de 0.7 com a palavra chave
+
+```
+```{r}
+findAssocs(novo_tdm, terms = c("sociedade", "nação", "estado"), corlimit = .70)
+```
+
+```{r}
+inspect(removeSparseTerms(novo_tdm, 0.4))
+```
+
+```{r}
+novo_new <- removeSparseTerms(novo_tdm, sparse = .75)
+
+novo_tdm # quantos termos originalmente
+
+novo_new # quantos termos ficaram
+```
+
+```{r}
+novo_tdm$nrow # para ver o número de linhas/ palavras do corpus original
+novo_new$nrow # para ver o número de linhas palavras do corpus reduzido
+```
+Matriz de distâncias
+```{r}
+# Para realizar as operações transformar em matriz
+novo_new <- novo_new %>% as.matrix()
+```
+Existe a função 'scale' ela realiza a padronização a partir de cada coluna. 
+\
+Muito util de cada coluna for um texto  como uma unidade completa
+\
+No caso vamos usar a média por linha para ver a associação das palavras por linha
+```{r}
+novo_new <- novo_new / rowSums(novo_new)
+```
+Matriz de distâncias com distâncias euclidianas
+```{r}
+novo_dist <- dist(novo_new, method = "euclidian")
+#novo_dist
+```
+Agrupamento hierárquico
+```{r}
+novo_hclust <-  hclust(novo_dist, method = "ward.D")
+# para geraar o gráfico
+plot(novo_hclust, main = "Dendrograma do discurso - hclust", sub = "", xlab = "")
+```
+
+```{r}
+# para o caso de querer colocar os clusters em destaque:
+plot(novo_hclust, main = "Dendrograma do discurso - hclust", sub = "", xlab = "")
+rect.hclust(novo_hclust, k = 5, border="blue")
+```
+
+
+### Análise
+Análise humana. Leitura e interpretação de dados
+O discurso de Ulysses Guimarães por ocasião da promulgação da Constituição ocorre após mais de 21 anos de ditadura de regime militar. Também é o resultado de muitos debates públicos
+\
+A palavra "Constituição" vem acompanhada de apalusos (aqui a transcrição menciona a reação dos deputados constituintes). São frequentemente citadas as palavras: Sociedade, Nação e Estado.
+\
+As associações de palavra apresentam a palavra constituição em associação de 77% com vários substantivos como: amor, analfabetos, cidadania, hospital, população. 
+\
+Algo que apresenta uma análise interessante são as palavras nação e estado. Muitas vezes são usada como sinônimas. Ulysses Guimarães em seu discurso as emprega de modo distinto.
+\ 
+A análise mostra que, ao falar de nação, são palavras majoritariamente de orientação positiva: mudar, amor, cidadania, execução, restauração, remédio.
+\
+Ao se referir ao Estado é possível constatar um inflexão mais negativa: capitulou, entregou, nomeia inssurreições ocorridas em passado recente e remoto: Acre, Guararapes, cita facínoras, e também pessoas torturadas e mortas pelo regime militar. O Estado na referência de Ulysses Guimarães é violento.
+\
+Com a métrica das palavras é possível fazer um dendograma de associação das palavras.
+\
+Um primeiro núcleo está a sociedade e o estado que está associado a uma mudança de ser.
+Um outro cluster bastante interessante agrupa o Brasil com a questão da moral pública perfeita.
+\
+O terceiro cluster coloca a democracia em relação com a pátria e o parlamento e as leis com as reivindicações (que vêm da participação popular - democracia)
+\
+A figura do homem como responsável pela elaboração da Constituinte.
+\
+O último cluster coloca a constituição como palavras que devem mudar a nação. Neste cluster que estão alocados os aplausos transcritos no texto como reação dos parlamentares presentes.
+
+# Referências
+https://www.curso-r.com/material/stringr/
+\
+https://rdrr.io/rforge/tm/ (para entender o pacote tm)
+\
+https://rpubs.com/tsholliger/301914
+\
+https://www.learningrfordatascience.com/post/dynamic-wordclouds-with-wordcloud2/
+\
+https://p4husp.github.io/material/textmining/ (para entender a lógica)
+\
+https://p4husp.github.io/material/tutorial11/ (mineração de texto)
