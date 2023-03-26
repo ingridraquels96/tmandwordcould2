@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Mineração de dados e apresentação dos dados em nuvem de palavras</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Bernardo Souza Scaldaferri, Denise Alves dos Santos,Ingrid Raquel Silva, Klara Narumi de Hamada Maia" />
+    <link href="Apresentacao_trabalho_files/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="Apresentacao_trabalho_files/remark-css-0.0.1/tamu.css" rel="stylesheet" />
+    <link href="Apresentacao_trabalho_files/remark-css-0.0.1/uo-fonts.css" rel="stylesheet" />
+    <script src="Apresentacao_trabalho_files/htmlwidgets-1.5.4/htmlwidgets.js"></script>
+    <link href="Apresentacao_trabalho_files/wordcloud2-0.0.1/wordcloud.css" rel="stylesheet" />
+    <script src="Apresentacao_trabalho_files/wordcloud2-0.0.1/wordcloud2-all.js"></script>
+    <script src="Apresentacao_trabalho_files/wordcloud2-0.0.1/hover.js"></script>
+    <script src="Apresentacao_trabalho_files/wordcloud2-binding-0.2.1/wordcloud2.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+
+class: inverse,center,middle
+
+# Mineração de dados e Apresentação dos dados em nuvem de palavras 
+
+## **Pacotes no R: tm(text mining) e  wordcloud2**
+
+.right[ 
+
+Bernardo Souza Scaldaferri
+
+Denise Alves dos Santos
+
+Ingrid Raquel Silva 
+
+Klara Narumi de Hamada Maia
+]
+
+&amp;nbsp;
+&lt;center&gt;&lt;font size="5"&gt;Universidade Federal de Minas Gerais &lt;/font&gt;&lt;/center&gt;
+
+???
+Comentário: 
+A capa desse trabalho não foi gerada automática, já que foi feito uma capa personalizada.
+
+---
+# Motivação
+- Grande volume de informações em formato de texto na internet;
+- Extrair informações de forma automática e com diminuição de vieses
+
+&amp;nbsp;
+--
+
+# Conceito Básico
+- Análogo ao Data Mining é o processo de extração de informações a partir de textos no geral.
+
+???
+Comentário:
+
+Um grande volume de informações disponíveis na internet estão em formato de texto, em jornais, blog ou redes sociais, como o Twitter ou o Facebook.
+
+O Text Mining permite a automatização de boa parte do processo de coleta e análise desses dados, reduzindo assim os vieses gerados pela intervenção humana e permitindo o rápido processamento de um grande volume de textos.
+
+---
+# Quais tipos de análise são possíveis em um Text Mining? 
+
+--
+
+- Sumarização 
+
+--
+
+- Categorização
+
+--
+
+- Clustering
+
+--
+
+- Análise de Sentimentos 
+
+???
+Comentário:
+
+O Text Mining trabalha com diversos tipos de análises, exemplos de algumas delas: Sumarização, um resumo das informações relevantes encontradas e depois coloca-se em formato de sumário, Categorização, uma separação por categorias dessas informações, Clustering, um processo que busca agrupar as informações por semelhança, e Análise de Sentimentos, conjunto de técnicas computacionais que buscam os sentimentos expressos pelo autor quando ele se refere a coisas específicas no texto (fatos, pessoas, lugares, etc), no geral com o objeto de se identificar o viés.
+
+---
+class: inverse, center, middle, animated, slideInRight
+
+# Pacotes que vão ser utilizados durante o processo
+.left[
+- tidyverse
+- wordcloud2
+- tm
+- tidytext
+- pdftools
+- rvest
+- readr
+]
+
+---
+class: animated, slideInRight
+
+# Coleta
+- Precisa-se transformar em matriz e posteriormente em vetor;
+- Como base de dados usa-se vários formatos, nesse caso usou-se pdf e txt;
+- Dividi-se o texto para transformar em data frame e depois em matriz;
+- Para apresentação deste trabalho escolheu-se análise discurso Ulysses Guimarães.
+
+
+
+
+
+
+
+### Etapas da Coleta:
+
+1- Baixar o arquivo pdf 
+
+2- Importar o arquivo pdf
+
+```r
+pdf_info("Ulysses_Constituinte.pdf")
+ulysses &lt;- pdf_text("Ulysses_Constituinte.pdf")
+```
+
+3- Separar a parte com o conteúdo do discurso
+
+```r
+ulysses &lt;- ulysses[c(1,2)]
+ulysses &lt;- paste(ulysses, collapse = " ")
+```
+
+???
+Comentário:
+
+Primeiro, coleta-se os dados,  a base de dados pode ser estática ou dinâmica, caso  seja dinâmica, o formato rmarkdown é preferível e pode-se consegui-las através do Machine Learning,  vários formatos de arquivos são aceitos, como txt, pdf e csv, também é possível extrair textos diretamente da internet usando o rvest, especialmente útil para notícias. Os dados extraídos serão transformados em uma Matriz que será subdividida, facilitando o seu processamento e exclusão de informações desnecessárias.
+
+Etapas da coleta (nesse caso faremos uma análise de um base estática Discurso de Ulysse Guimarães no dia da promulgação da constituição)
+
+---
+class: animated, slideInRight
+
+# Dicas: 
+
+- Grave o arquivo em formato txt
+
+```r
+write_lines(ulysses, "ulysses.txt")
+```
+
+- Selecione o discurso
+
+```r
+texto &lt;- read_csv("ulysses.txt", col_names = FALSE) 
+novo_texto &lt;- texto[11,1] 
+```
+
+- Converta em vetor
+
+```r
+novo_texto &lt;- as.matrix(novo_texto)
+novo_texto &lt;- as.vector(novo_texto)
+```
+
+- Retire uma referência
+
+```r
+novo_texto &lt;- str_replace(novo_texto, "https://www.camara.leg.br/radio/programas/277285-integra-do-discurs…nte-da-assembleia-nacional-constituinte-dr-ulysses-guimaraes-10-23/        Página 1 de 3
+ Portal da Câmara dos Deputados                                                                                                               02/10/2020 23'15", "")
+write_lines(novo_texto, "ulysses.txt")
+novo_texto # retirado
+```
+
+---
+class: animated, slideInRight
+
+4- Partir o discurso em unidades textuais, divida por linhas
+
+```r
+novo_origem &lt;- read_lines("ulysses.txt") 
+str(novo_origem)
+```
+
+
+```r
+dez &lt;- rep(1:ceiling(length(novo_origem)/10), each = 10)
+str(dez)
+```
+
+
+```r
+dez &lt;- dez[1:length(novo_origem)]
+str(dez)
+```
+
+
+```r
+novo_texto &lt;- cbind(dez, novo_origem) %&gt;% data.frame()
+
+novo_texto &lt;- aggregate(formula = novo_origem ~ dez,
+                        data = novo_texto,
+                        FUN = paste,
+                        collapse = " ")
+
+novo_texto &lt;- novo_texto %&gt;% select(novo_origem) %&gt;% as.matrix
+dim(novo_texto)
+```
+
+---
+class: animated, slideInRight
+
+# Pré-processamento
+Uma forma de preparar o texto, isto é, deixa-lo apto para os próximos passos da mineração envolve os seguinte passos:
+
+## O pacote tm 
+
+- Eliminar caracteres especiais;
+
+```r
+novo_texto &lt;- gsub("[[:cntrl:]]", " ", novo_texto) 
+```
+
+- Deixar tudo minúsculo;
+
+```r
+novo_texto &lt;- tolower(novo_texto)
+```
+
+- Remove pontuação
+
+```r
+novo_texto &lt;- removePunctuation(novo_texto) 
+```
+
+---
+class: animated, slideInRight
+
+- Retirada das chamadas stopwords
+
+```r
+#Carregando o stopwords do pacote tm
+sw_pt_tm &lt;- stopwords('portuguese')
+#Convertendo para dataframe
+sw_pt_tm &lt;- data.frame(sw_pt_tm)
+#Renomeando a variável
+sw_pt_tm &lt;- rename(sw_pt_tm, palavra = sw_pt_tm)
+
+stopwords_personal &lt;- tibble(palavra = c("é", "ainda", "alguns", "pra"))
+
+#stop_words_pt &lt;- c(stopwords("pt"), "é", "ainda", "alguns", "pra")
+```
+
+
+```r
+novo_texto &lt;- removeWords(novo_texto, stopwords("pt"))
+# novo_texto &lt;- removeWords(novo_texto, stop_words_pt)
+```
+
+- Remover os espaços em branco;
+
+```r
+novo_texto &lt;- stripWhitespace(novo_texto)
+```
+
+- Stemming, deixar apenas o radical para eliminar plurais, masculino ou feminino e pequenas variações.
+
+???
+Comentário:
+
+Stopwords são palavras previamente selecionadas que não agregam informações à análise, como conectivos, vícios de linguagem, por exemplo, o, a é, algum. 
+Pode ser personalizado, mas o pacote tm tem stopwords em português)
+
+---
+class: animated, slideInRight
+
+### Agora renomear a variável
+
+
+```r
+novo_texto &lt;- tibble(texto = novo_texto) 
+```
+
+### Depois
+
+- Tokenizar as palavras e eliminar as palavras de conexão
+
+```r
+texto_palavras &lt;- novo_texto %&gt;% 
+  unnest_tokens(palavra, texto, strip_numeric = TRUE) %&gt;% 
+  count(palavra, sort = TRUE)
+palavras_freq &lt;- texto_palavras %&gt;% 
+  anti_join(stopwords_personal) %&gt;%
+  anti_join(sw_pt_tm)
+```
+
+---
+class: animated, slideInRight
+
+# Indexação
+
+Nessa etapa cria-se um identificador (índice) para cada palavra, dessa forma pode-se acessar com facilidade as informações;
+
+- Palavras frequentes
+
+```r
+grafico_palavras &lt;- palavras_freq %&gt;% 
+  top_n(10) %&gt;% 
+  ggplot(aes(y = reorder(palavra, n), x = n)) + 
+  geom_col(fill = "#EEBBAA") +labs(y = NULL, x = "frequencia",
+  title = "As 10 palavras mais frequentes") + theme_minimal()
+```
+
+&lt;img src="Apresentacao_trabalho_files/figure-html/unnamed-chunk-12-1.png" style="display: block; margin: auto;" /&gt;
+
+---
+class: animated, slideInRight
+
+# Nuvem de palavras
+
+```r
+wordcloud2(data = palavras_freq, size = 0.3)
+```
+
+&lt;center&gt;
+<div id="htmlwidget-871e20914a62cf8fe8de" style="width:504px;height:504px;" class="wordcloud2 html-widget"></div>
+<script type="application/json" data-for="htmlwidget-871e20914a62cf8fe8de">{"x":{"word":["constituição","mudar","nação","sociedade","estado","mudou","perfeita","quer","aplausos","caminho","leis","mil","parlamento","ter","vai","anos","ante","brasil","cadeia","cidadão","cidadãos","constituinte","corrupção","democracia","deve","el","elaboração","emendas","enorme","homem","liberdade","moral","mudança","ódio","palavras","pátria","povo","presidente","própria","pública","rei","reivindicações","república","roubar","sempre","ser","sim","traidor","abrem","abrilos","acaba","acalorados","acre","admissionado","admite","admitir","advertir","afrontála","afrontosos","alargado","além","alfabeto","algumas","amaldiçoamos","américa","amor","ampliamos","analfabetos","andré","anistia","antagonismo","anteprojeto","aonde","aplicação","após","aposentados","apresentadas","aprovados","arquitetônico","arquitetura","assembléia","assinaturas","atestando","atividade","audácia","aurora","ausência","autenticidade","avanço","bastante","bolsões","bradamos","bramido","brasileira","cabe","camarão","caminhando","caminhar","caminhos","campo","capitulou","caramujo","carentes","castro","cemitério","cento","cerca","cerne","certamente","chegamos","cidadania","cindo","civis","clarim","colossais","começa","comecei","comícios","comissões","complementar","complementares","complexo","confessa","conhecemos","constantes","constituintes","contemporaneidade","cozinheiras","criando","cunhou","cupim","deﬁnição","deixar","demagogos","dentro","derrotou","desbravadora","descansa","descumprir","desgraçados","desgrace","desobeder","deveres","diagnóstico","diariamente","dilatada","direta","diretas","discordar","discurso","distribuidas","ditadura","divergir","dois","ecoam","edição","eis","emendada","empresários","empurrou","encarnado","entradas","entrega","escreve","escuros","esforço","espera","esperamos","esperança","esquecemos","estatuto","estudantes","executar","exercício","exílio","exilou","fábrica","facínoras","fala","favela","federação","felipe","fernandes","fevereiro","ﬁnal","ﬁscalizada","ﬁzemos","foices","forâneo","franquearam","frase","fronteiras","gabinetes","galeria","ganha","garrotear","gente","geograﬁas","grito","guararapes","guardará","habilitado","hoje","holandesa","homens","honra","honrálos","hospital","humildade","ignorados","imposição","impune","índios","inépcia","inércia","iniciativa","injução","inovadora","insurreição","integridade","interna","invasão","irreformável","jamais","joão","justo","lamparina","latina","lazer","lê","legisladores","lei","letra","libertou","liderança","livremente","longo","lutas","luz","machados","maiores","maldito","mandado","mandamento","mandar","mandou","mão","mataram","medo","menores","metrópole","milhão","milhões","militares","miséria","mobilizada","mora","muda","mundo","naçao","nações","nadcional","nativa","necessidades","negligência","negreiros","nesta","noite","nojo","nordeste","nunca","ondas","onde","ora","ordenar","ordinária","ordinárias","outubro","oxigenado","país","paiva","participação","passa","passou","patriotas","penetrar","pioneira","plácido","poderão","poderes","pois","política","população","popular","populares","portanto","portas","posse","posseiros","postulantes","praça","preeminência","prefeito","preguiça","prendeu","presença","pretende","pretexto","primeiro","principalmente","procura","projetos","promulgação","promulgamos","proveio","provimento","publicadas","punhos","quanto","rasgar","realismo","rebelada","recusando","redação","redentor","referendo","reforma","rejeitar","relatadas","remédio","repatriou","representativo","repúblcia","repudia","resignarase","restaurando","restaurou","retomou","roube","rua","ruas","rubens","rumo","sacrifícios","sala","salário","salões","salvála","senador","senhoras","senhores","seringueiros","serviço","servidores","servir","signiﬁcado","sob","soberania","sobre","sociais","social","socidedade","sofrimento","somase","sopro","subcomissões","suﬁciente","suja","sujos","superlegislador","suplementar","tabocas","tange","tantos","teotônio","termino","territorial","texto","tirania","tiranizam","tocando","toma","tordesilhas","trabalhadores","trancar","transição","umbral","usurpador","útil","vencendo","vencer","vereador","vida","vidal","vieira","vigia","vigorar","vilella","vontade","votadas","voz"],"freq":[11,8,8,8,7,5,4,4,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"fontFamily":"Segoe UI","fontWeight":"bold","color":"random-dark","minSize":0,"weightFactor":4.90909090909091,"backgroundColor":"white","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0.4,"shape":"circle","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":{"render":[{"code":"function(el,x){\n                        console.log(123);\n                        if(!iii){\n                          window.location.reload();\n                          iii = False;\n\n                        }\n  }","data":null}]}}</script>
+&lt;/center&gt;
+
+---
+## Argumentos nuvem de palavras worcloud2
+
+.pull-left[
+- data
+- size
+- minSize
+- gridSize
+- fontFamily
+- fontWeight
+- color
+- backgroundColor
+- minRotation
+- maxRotation
+- shuffle
+- rotateRatio
+]
+
+--
+.pull-right[
+
+- shape:
+  - circle
+  - cardioid
+  - diamond
+  - triangle-forward
+  - triangle
+  - pentagon
+  - star
+- ellipticity
+- widgetsize
+- figPath
+- hoverFunction
+]
+
+---
+class: animated, slideInRight
+
+# Mineração
+
+- Extração de informações relevantes, da parte mais “refinada”.
+
+- Essa parte geralmente usa algoritmos de Machine Learning para ser feita;
+
+- Nesse contexto usou-se método euclidiano de distância. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+???
+Comentário:
+
+Na análise feita usou-se método Euclidiano de distâncias a fim de “medir” quais palavras estavam mais próximas, para isso criou-se uma matriz de distâncias;
+
+---
+class: middle, animated, slideInRight
+
+
+```r
+novo_hclust &lt;-  hclust(novo_dist, method = "ward.D")
+plot(novo_hclust, main = "Dendrograma do discurso - hclust",
+     sub = "", xlab = "")
+rect.hclust(novo_hclust, k = 5, border="blue")
+```
+
+![](Apresentacao_trabalho_files/figure-html/unnamed-chunk-26-1.png)&lt;!-- --&gt;
+
+![](Apresentacao_trabalho_files/figure-html/unnamed-chunk-27-1.png)&lt;!-- --&gt;
+
+???
+Comentário:
+
+Análise
+
+Há várias metodologias para Mineração e Análise (como as anteriormente que giram em torno de separar tudo e agrupar por semelhanças), nesse contexto, usou-se matrizes de distâncias com método euclidiano de distância (há outros tipos de distâncias), depois utilizou-se das distâncias para realizar um agrupamento hierárquico entre as palavras e depois plotar um dendograma e pode-se observar quais palavras e estão correlacionadas de alguma forma.
+
+Análise humana. Leitura e interpretação de dados
+O discurso de Ulysses Guimarães por ocasião da promulgação da Constituição ocorre após mais de 21 anos de ditadura de regime militar. Também é o resultado de muitos debates públicos
+
+A palavra "Constituição" vem acompanhada de apalusos (aqui a transcrição menciona a reação dos deputados constituintes). São frequentemente citadas as palavras: Sociedade, Nação e Estado.
+
+As associações de palavra apresentam a palavra constituição em associação de 77% com vários substantivos como: amor, analfabetos, cidadania, hospital, população. 
+
+Algo que apresenta uma análise interessante são as palavras nação e estado. Muitas vezes são usada como sinônimas. Ulysses Guimarães em seu discurso as emprega de modo distinto.
+ 
+A análise mostra que, ao falar de nação, são palavras majoritariamente de orientação positiva: mudar, amor, cidadania, execução, restauração, remédio.
+
+Ao se referir ao Estado é possível constatar um inflexão mais negativa: capitulou, entregou, nomeia inssurreições ocorridas em passado recente e remoto: Acre, Guararapes, cita facínoras, e também pessoas torturadas e mortas pelo regime militar. O Estado na referência de Ulysses Guimarães é violento.
+
+Com a métrica das palavras é possível fazer um dendograma de associação das palavras.
+
+Um primeiro núcleo está a sociedade e o estado que está associado a uma mudança de ser.
+Um outro cluster bastante interessante agrupa o Brasil com a questão da moral pública perfeita.
+
+O terceiro cluster coloca a democracia em relação com a pátria e o parlamento e as leis com as reivindicações (que vêm da participação popular - democracia)
+
+A figura do homem como responsável pela elaboração da Constituinte.
+
+O último cluster coloca a constituição como palavras que devem mudar a nação. Neste cluster que estão alocados os aplausos transcritos no texto como reação dos parlamentares presentes.
+
+---
+class:   animated, slideInRight
+
+# Referências
+
+- https://www.curso-r.com/material/stringr/
+- https://rdrr.io/rforge/tm/ 
+- https://rpubs.com/tsholliger/301914
+- https://www.learningrfordatascience.com/post/dynamic-wordclouds-with-wordcloud2/
+- https://p4husp.github.io/material/textmining/ 
+- https://p4husp.github.io/material/tutorial11/ 
+- https://www.r-graph-gallery.com/196-the-wordcloud2-library.html
+- https://cran.r-project.org/web/packages/wordcloud2/wordcloud2.pdf
+
+---
+class: center, middle, animated, slideInDown
+
+# Muito obrigada
+![](https://media.giphy.com/media/MDJ9IbxxvDUQM/giphy.gif)
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "zenburn",
+"highlightLines": true,
+"slideClass": ["animated", "fadeIn"]
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
